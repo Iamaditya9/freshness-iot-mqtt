@@ -1,0 +1,55 @@
+{
+  "executive_summary": "The empirical evaluation demonstrates a clear trade-off between information timeliness and completeness in MQTT-based IoT telemetry under network outages. The Freshness-Aware queuing strategy prioritizes recent state updates by proactively discarding outdated queue items, drastically reducing median Age of Information (AoI), post-outage recovery time, and transmission latency compared to standard FIFO queuing. However, this comes at the expense of message delivery ratio and creates severe tail-latency anomalies (e.g., p95 AoI degradation under high-rate, extended outage conditions).",
+  "where_freshness_wins": [
+    {
+      "metric": "Transmission Delay (median_delay_sec)",
+      "observation": "Freshness-aware queuing maintains near-constant transmission latency (~7.5ms to 8.9ms) across all outage durations (5s to 30s) and ingest rates (1Hz to 10Hz). Conversely, FIFO accumulates head-of-line blocking, escalating median delay up to 17.05s during 30s outages."
+    },
+    {
+      "metric": "Recovery Time (mean_recovery_sec)",
+      "observation": "Post-outage reconnection recovery time for Freshness is consistently sub-150ms (0.045s to 0.136s), representing up to a 98% reduction compared to FIFO, which takes between 1.28s and 5.20s to drain stale backlogs."
+    },
+    {
+      "metric": "Median Age of Information (median_aoi_sec)",
+      "observation": "Freshness yields substantial reductions in median AoI under congested conditions. At a 15s outage with 10Hz ingest rate, Freshness achieves a median AoI of 0.4814s compared to 4.8111s for FIFO (a 90% improvement)."
+    },
+    {
+      "metric": "Bandwidth Efficiency (tx_bytes)",
+      "observation": "By dropping stale buffered messages directly at the publisher/broker before transit, Freshness saves significant network egress (e.g., transmitting 44.5 KB vs 82.5 KB at 30s outage/5Hz), preventing wasteful transmission of obsolete telemetry."
+    }
+  ],
+  "tradeoffs_and_regressions": [
+    {
+      "aspect": "Delivery Ratio & Intentional Message Loss",
+      "impact": "Freshness intentionally discards stale packets, reducing delivery ratios to as low as 39.26% (30s outage, 10Hz) compared to FIFO's 55.04%. For 30s outages at 1Hz, FIFO achieved 100% delivery whereas Freshness dropped delivery to 42.22% via 104 stale drops."
+    },
+    {
+      "aspect": "Tail AoI Regression (p95_aoi_sec)",
+      "impact": "Under extreme stress (30s outage, 10Hz rate), Freshness suffers a severe p95 AoI regression, spiking to 64.53s compared to FIFO's 28.92s. This indicates potential starvation or packet scheduling pathologies under concurrent overflow and staleness dropping."
+    },
+    {
+      "aspect": "Buffer Saturation Parity",
+      "impact": "At prolonged outages and high ingest rates (30s, 10Hz), both strategies experience significant overflow drops (~776 to 796 dropped packets), demonstrating that freshness pruning alone cannot fully mitigate buffer capacity limits without active rate regulation."
+    }
+  ],
+  "operating_recommendations": [
+    {
+      "scenario": "State-oriented IoT Monitoring & Control (e.g., digital twins, HVAC, robotics)",
+      "recommendation": "Deploy Freshness-Aware queuing. Immediate post-disruption state convergence (<100ms recovery) and low median latency outweigh the loss of intermediate, superseded telemetry points."
+    },
+    {
+      "scenario": "Audit, Accounting, and Event-Driven Telemetry (e.g., billing, security alerts)",
+      "recommendation": "Enforce FIFO queuing with persistent storage or expand queue depths. The 35\u201360% message drop rate inherent in freshness policies violates completeness and auditability constraints."
+    },
+    {
+      "scenario": "Hybrid Mitigation for High-Frequency Telemetry",
+      "recommendation": "Implement an adaptive threshold: combine Freshness-Aware replacement with an AoI cap or backoff mechanism to prevent the tail AoI explosion observed at 10Hz / 30s outage conditions."
+    }
+  ],
+  "limitations_to_note": [
+    "Sample Size: The benchmark relies on aggregated means over 5 runs per condition, which may obscure transient variance and jitter distribution details.",
+    "Uniform Traffic Model: The synthetic workload uses fixed Poisson/periodic rates (1Hz, 5Hz, 10Hz), omitting real-world burstiness and multi-sensor topic interleaving.",
+    "Single-Subscriber Context: Measurements reflect end-to-end metrics that may shift under broker fan-out architectures where consumers have disparate connection qualities.",
+    "Tail AoI Pathology: The exact mechanism driving the p95 AoI spike (64.53s) in the 30s/10Hz freshness scenario warrants granular packet-trace validation."
+  ]
+}

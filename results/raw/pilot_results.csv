@@ -1,0 +1,3 @@
+strategy,outage_sec,rate_hz,rep,total_generated,total_published,unique_received,duplicates,dropped_overflow,dropped_stale,delivery_ratio,median_aoi_sec,p95_aoi_sec,median_delay_sec,p95_delay_sec,mean_recovery_sec,tx_bytes,rx_bytes
+fifo,5,5,1,400,400,400,0,0,0,1.0,0.136,4.4217,0.0083,4.2938,1.3128,47029,47029
+freshness,5,5,1,400,372,372,0,0,28,0.93,0.1373,4.1286,0.0079,3.6952,0.0569,43744,43744
